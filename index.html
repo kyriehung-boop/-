@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Market Radar 市場雷達</title>
+<style>
+:root{--bg:#eef1f4;--panel:#fff;--ink:#14202b;--mute:#5d6b78;--line:#d6dde4;--long:#0e7c66;--short:#b4234a;--acc:#3b4cca;--warn:#9a6a00;color-scheme:light dark}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1820;--panel:#17232d;--ink:#e6edf3;--mute:#93a3b1;--line:#2a3a47;--long:#35c2a1;--short:#ff6b8b;--acc:#8b9bff;--warn:#e0b34a}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+main{max-width:760px;margin:0 auto;padding:20px 16px 40px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:6px}
+h1{font-size:26px;line-height:1.2;margin:0;letter-spacing:.02em}
+.sub{color:var(--mute);font-size:13px;margin:4px 0 16px}
+button{font:inherit;background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
+button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+button[disabled]{opacity:.5}
+.card{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+.card.long{border-left-color:var(--long)}.card.short{border-left-color:var(--short)}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sym{font-size:20px;font-weight:700}
+.px{font-variant-numeric:tabular-nums;font-size:20px}
+.chg{font-size:13px;margin-left:6px}.up{color:var(--long)}.dn{color:var(--short)}
+.verdict{display:flex;gap:10px;align-items:center;margin:8px 0 4px;flex-wrap:wrap}
+.tag{padding:2px 10px;border-radius:99px;font-size:13px;font-weight:600;border:1px solid var(--line);color:var(--mute)}
+.tag.long{background:var(--long);border-color:var(--long);color:var(--panel)}
+.tag.short{background:var(--short);border-color:var(--short);color:var(--panel)}
+.score{color:var(--mute);font-size:13px}
+.ladder{position:relative;height:64px;margin:10px 4px 4px}
+.ladder:before{content:"";position:absolute;left:0;right:0;top:31px;height:2px;background:var(--line)}
+.zone{position:absolute;top:24px;height:16px;border-radius:4px;background:var(--acc);opacity:.35}
+.m{position:absolute;top:26px;width:2px;height:12px;background:var(--ink)}
+.m.sl{background:var(--short)}.m.tp{background:var(--long)}
+.m.px{top:22px;width:10px;height:10px;margin-left:-4px;border-radius:50%;background:var(--ink);top:27px;height:10px}
+.m b{position:absolute;left:50%;transform:translateX(-50%);font-size:11px;font-weight:400;color:var(--mute);white-space:nowrap}
+.m.u b{bottom:16px}.m.d b{top:16px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 12px;margin:12px 0}
+.grid div{font-size:12px;color:var(--mute)}
+.grid span{display:block;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+ul{list-style:none;margin:8px 0 0;padding:0}
+li{font-size:13px;padding:3px 0;border-top:1px solid var(--line);display:flex;gap:8px}
+li i{font-style:normal;width:1.2em;font-weight:700}
+li.ok i{color:var(--long)}li.no i{color:var(--short)}
+li small{color:var(--mute);margin-left:auto;text-align:right}
+.err{color:var(--short);font-size:14px}
+.strat{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}.strat h3{font-size:15px;margin:0}.banner{margin:8px 0;padding:8px 10px;border-radius:8px;background:var(--acc);color:var(--panel);font-size:14px}.banner.x{background:var(--warn)}.inp{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mute);margin-bottom:12px}.inp input{width:90px;font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+footer{color:var(--mute);font-size:12px;margin-top:20px}
+@media(max-width:420px){.grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Market Radar 市場雷達</h1><button id="go">重新掃描</button></header>
+<p class="sub" id="stat">載入中…</p>
+<div class="inp"><label>帳戶 USDT <input id="acct" type="number" value="1000"></label><label>單筆風險 % <input id="risk" type="number" value="1" step="0.1"></label></div>
+<div id="out"></div>
+<footer>只讀行情，不會下單。資料來自 OKX 公開 API。策略 A：4H／1H 同向定方向，1H／4H 轉折點當支撐壓力，15 分鐘最近 96 根 K 棒成交量分布估算 POC，再等裸 K 拒絕。策略 B：掃流動性後出現 MSS 位移，以 OB 當埋伏區。兩者同向且區間重疊才標示共振。評分是條件符合度，不是勝率，尚未回測，請自行判斷風險。</footer>
+</main>
+<script>
+const SYMS=['BTC','ETH','SOL']; // 想掃描更多標的就加在這裡
+const API='https://www.okx.com/api/v5/';
+const fmt=n=>n>=1000?n.toLocaleString('en',{maximumFractionDigits:1}):n>=10?n.toFixed(2):n.toFixed(4);
+async function get(p){const r=await fetch(API+p);const j=await r.json();if(j.code!=='0')throw new Error(j.msg||'OKX 回應錯誤');return j.data}
+async function candles(id,bar,n){const d=await get(`market/candles?instId=${id}&bar=${bar}&limit=${n}`);
+ return d.filter(x=>x[8]==='1').reverse().map(x=>({o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}))}
+const ema=(a,n)=>{const k=2/(n+1);let e=a[0];for(const x of a)e=x*k+e*(1-k);return e};
+function trend(cs){const c=cs.map(x=>x.c),p=c[c.length-1],a=ema(c,25),b=ema(c,99);return p>a&&a>b?1:p<a&&a<b?-1:0}
+function atr(cs,n=14){const s=cs.slice(-n-1);let t=0;for(let i=1;i<s.length;i++)t+=Math.max(s[i].h-s[i].l,Math.abs(s[i].h-s[i-1].c),Math.abs(s[i].l-s[i-1].c));return t/n}
+function pivots(cs,k=3){const hi=[],lo=[];for(let i=k;i<cs.length-k;i++){const w=cs.slice(i-k,i+k+1);
+ if(cs[i].h===Math.max(...w.map(x=>x.h)))hi.push(cs[i].h);if(cs[i].l===Math.min(...w.map(x=>x.l)))lo.push(cs[i].l)}return{hi,lo}}
+function poc(cs,bins=40){const lo=Math.min(...cs.map(x=>x.l)),hi=Math.max(...cs.map(x=>x.h)),st=(hi-lo)/bins||1,v=Array(bins).fill(0);
+ for(const k of cs){const a=Math.min(bins-1,Math.floor((k.l-lo)/st)),b=Math.min(bins-1,Math.floor((k.h-lo)/st));for(let i=a;i<=b;i++)v[i]+=k.v/(b-a+1)}
+ return lo+(v.indexOf(Math.max(...v))+.5)*st}
+function reject(cs,dir,p){return cs.slice(-2).some(k=>{const body=Math.abs(k.c-k.o),rng=k.h-k.l||1e-9,w=dir>0?Math.min(k.o,k.c)-k.l:k.h-Math.max(k.o,k.c);
+ return w>=1.5*body&&w>=.4*rng&&(dir>0?k.c>=k.o:k.c<=k.o)&&(dir>0?k.l<=p.hi:k.h>=p.lo)})}
+function plan(d){const{price,a,poc:pc,dir,hi,lo}=d;
+ const lv=dir>0?lo.filter(x=>x<=price*1.002).sort((x,y)=>y-x)[0]:hi.filter(x=>x>=price*.998).sort((x,y)=>x-y)[0];
+ if(lv==null)return null;
+ const z0=Math.min(pc,lv)-.1*a,z1=Math.max(pc,lv)+.1*a,entry=(z0+z1)/2,sl=dir>0?z0-.5*a:z1+.5*a,R=Math.abs(entry-sl);
+ const tg=dir>0?hi.filter(x=>x>entry+R).sort((x,y)=>x-y):lo.filter(x=>x<entry-R).sort((x,y)=>y-x);
+ const tp1=tg[0]??entry+dir*1.5*R,tp2=tg[1]??entry+dir*3*R;
+ return{lo:z0,hi:z1,entry,sl,tp1,tp2,rr:Math.abs(tp1-entry)/R,overlap:Math.abs(pc-lv)<=a,
+  near:dir>0?price>=z0-.3*a&&price<=z1+.5*a:price<=z1+.3*a&&price>=z0-.5*a}}
+const $=id=>document.getElementById(id);let last=[];
+const mirror=cs=>cs.map(k=>({o:-k.o,h:-k.l,l:-k.h,c:-k.c,v:k.v}));
+function smcL(cs,a,price){const n=cs.length;
+ for(let s=n-2;s>=n-14;s--){
+  const L=Math.min(...cs.slice(s-20,s).map(k=>k.l));
+  if(!(cs[s].l<L&&cs[s].c>L))continue;
+  const H=Math.max(...cs.slice(s-6,s).map(k=>k.h));
+  let j=-1;for(let i=s+1;i<n;i++)if(cs[i].c>H&&cs[i].c-cs[i].o>=.8*a){j=i;break}
+  if(j<0)continue;
+  let ob=cs[s];for(let i=s;i<j;i++)if(cs[i].c<cs[i].o)ob=cs[i];
+  const sl=cs[s].l-.3*a;
+  if(cs.slice(j+1).some(k=>k.c<sl))continue;
+  const lo=ob.l,hi=ob.h,entry=(lo+hi)/2,R=entry-sl;if(R<=0)continue;
+  const top=Math.max(...cs.slice(s-20,j+1).map(k=>k.h)),tp1=top>entry+R?top:entry+1.5*R,tp2=Math.max(tp1+R,entry+3*R);
+  return{lo,hi,entry,sl,tp1,tp2,rr:(tp1-entry)/R,near:price>=sl&&price<=hi+1.5*a,idx:s}}
+ return null}
+function smc(cs,a,price){const L=smcL(cs,a,price),m=smcL(mirror(cs),a,-price);
+ const S=m&&{lo:-m.hi,hi:-m.lo,entry:-m.entry,sl:-m.sl,tp1:-m.tp1,tp2:-m.tp2,rr:m.rr,near:m.near,idx:m.idx};
+ return[L&&{...L,dir:1},S&&{...S,dir:-1}].filter(Boolean).sort((x,y)=>y.idx-x.idx)[0]||null}
+async function scan(sym){
+ const id=sym+'-USDT-SWAP';
+ const [c4,c1,c15,tk,fr]=await Promise.all([candles(id,'4H',150),candles(id,'1H',150),candles(id,'15m',120),get('market/ticker?instId='+id),get('public/funding-rate?instId='+id)]);
+ const price=+tk[0].last,chg=(price/+tk[0].open24h-1)*100,fund=+fr[0].fundingRate;
+ const t4=trend(c4),t1=trend(c1),dir=t4===t1?t4:0,a=atr(c15),pc=poc(c15.slice(-96)),nm=x=>x>0?'多':x<0?'空':'震盪';
+ const w=c1.slice(-31);let path=0;for(let i=1;i<w.length;i++)path+=Math.abs(w[i].c-w[i-1].c);
+ const er=Math.abs(w[30].c-w[0].c)/(path||1);
+ const A={title:'策略 A｜趨勢＋POC',dir,p:null,conds:[{ok:dir!==0,txt:'4H 與 1H 趨勢同向',pts:30,note:`4H ${nm(t4)}／1H ${nm(t1)}`}]};
+ if(dir!==0){const p4=pivots(c4),p1=pivots(c1),p=plan({price,a,poc:pc,dir,hi:[...p1.hi,...p4.hi],lo:[...p1.lo,...p4.lo]});
+  if(!p)A.conds.push({ok:false,txt:'附近有可用的支撐／壓力',pts:25,note:'找不到轉折點'});
+  else{A.p=p;A.conds.push({ok:p.overlap,txt:`${dir>0?'支撐':'壓力'}與 POC 重疊`,pts:25,note:'POC '+fmt(pc)},
+   {ok:p.near,txt:'現價回到埋伏區附近',pts:15,note:''},{ok:reject(c15,dir,p),txt:'15 分鐘出現裸 K 拒絕',pts:20,note:''},
+   {ok:p.rr>=1.5,txt:'RR 至少 1.5',pts:10,note:'RR '+p.rr.toFixed(2)});
+   if(dir>0?fund>.0005:fund<-.0005)A.conds.push({ok:false,txt:'資金費率過熱，順勢單擁擠',pts:-10,note:(fund*100).toFixed(3)+'%'})}}
+ const s=smc(c15,a,price);
+ const B={title:'策略 B｜SMC 流動性反轉',dir:s?s.dir:0,p:s,conds:[
+  {ok:!!s,txt:'流動性掃取＋MSS 位移',pts:40,note:s?(s.dir>0?'掃低後上破':'掃高後下破'):'近期未出現'},
+  {ok:!!s&&s.near,txt:'現價在 OB 附近且未失效',pts:25,note:''},
+  {ok:!!s&&s.rr>=1.5,txt:'RR 至少 1.5',pts:20,note:s?'RR '+s.rr.toFixed(2):''},
+  {ok:!!s&&s.dir===t4,txt:'與 4H 方向一致（加分，非必要）',pts:15,note:'4H '+nm(t4)}]};
+ for(const S of[A,B]){S.score=Math.max(0,S.conds.reduce((t,c)=>t+(c.pts>0?(c.ok?c.pts:0):c.pts),0));
+  S.ready=!!S.p&&S.conds.filter(c=>c.pts>0).slice(0,S===B?3:9).every(c=>c.ok)}
+ let res='';
+ if(A.ready&&B.ready)res=A.dir!==B.dir?'衝突':(A.p.lo<=B.p.hi&&B.p.lo<=A.p.hi?'共振':'同向');
+ return{sym,price,chg,fund,er,A,B,res}}
+function ladder(S,price){const p=S.p;if(!p)return'';
+ const it=[['止損',p.sl,'sl'],['TP1',p.tp1,'tp'],['TP2',p.tp2,'tp'],['現價',price,'px'],['進場區',p.entry,'in']];
+ const all=[p.sl,p.lo,p.hi,p.tp1,p.tp2,price],mn=Math.min(...all),sp=Math.max(...all)-mn||1,x=v=>(4+(v-mn)/sp*92).toFixed(1);
+ it.sort((u,v)=>u[1]-v[1]);
+ return`<div class="ladder"><span class="zone" style="left:${x(p.lo)}%;width:${Math.max(x(p.hi)-x(p.lo),1.5)}%"></span>${it.map((m,i)=>`<i class="m ${m[2]} ${i%2?'d':'u'}" style="left:${x(m[1])}%"><b>${m[0]}</b></i>`).join('')}</div>`}
+function block(S,r){const p=S.p,cls=S.ready?(S.dir>0?'long':'short'):'',lb=S.ready?(S.dir>0?'做多候選':'做空候選'):'觀望';
+ let g='';
+ if(p&&S.ready){const risk=(+$('acct').value||0)*(+$('risk').value||0)/100,q=risk/Math.abs(p.entry-p.sl);
+  g=`<div class="grid"><div>埋伏區<span>${fmt(p.lo)}–${fmt(p.hi)}</span></div><div>止損<span>${fmt(p.sl)}</span></div><div>RR<span>${p.rr.toFixed(2)}</span></div><div>TP1<span>${fmt(p.tp1)}</span></div><div>TP2<span>${fmt(p.tp2)}</span></div><div>倉位（風險 $${risk.toFixed(0)}）<span>${q.toFixed(q<1?4:2)} ${r.sym}</span></div></div>`}
+ return`<div class="strat"><h3>${S.title}</h3><div class="verdict"><span class="tag ${cls}">${lb}</span><span class="score">條件符合度 ${S.score}／100</span></div>${S.ready?ladder(S,r.price):''}${g}<ul>${S.conds.map(c=>`<li class="${c.ok?'ok':'no'}"><i>${c.ok?'✓':'✗'}</i>${c.txt}<small>${c.note||''}</small></li>`).join('')}</ul></div>`}
+function card(r){
+ const msg={共振:'兩個策略同向，埋伏區重疊，優先關注',同向:'兩個策略同向，但埋伏區沒有重疊',衝突:'兩個策略方向相反，建議不做'}[r.res];
+ const cls=r.res==='共振'?(r.A.dir>0?'long':'short'):'',fc=r.chg>=0?'up':'dn';
+ return`<section class="card ${cls}"><div class="top"><span class="sym">${r.sym} 永續</span><span class="px">${fmt(r.price)}<span class="chg ${fc}">${r.chg>=0?'+':''}${r.chg.toFixed(2)}%</span></span></div>
+ <div class="score">資金費率 ${(r.fund*100).toFixed(3)}%｜1H 趨勢效率 ${r.er.toFixed(2)}${r.er<.2?'（偏震盪，順勢訊號可信度低）':''}</div>
+ ${msg?`<div class="banner ${r.res==='共振'?'':'x'}"><b>${r.res}</b>：${msg}</div>`:''}${block(r.A,r)}${block(r.B,r)}</section>`}
+function draw(){$('out').innerHTML=last.map((x,i)=>x.err?`<section class="card"><span class="sym">${SYMS[i]}</span><p class="err">讀取失敗：${x.err}。請檢查網路後重新掃描。</p></section>`:card(x)).join('')}
+async function run(){const b=$('go'),s=$('stat');b.disabled=true;s.textContent='掃描中…';
+ last=(await Promise.allSettled(SYMS.map(scan))).map(x=>x.status==='fulfilled'?x.value:{err:x.reason.message});draw();
+ s.textContent='最後更新 '+new Date().toLocaleTimeString('zh-TW',{hour12:false})+'｜每 60 秒自動更新';b.disabled=false}
+$('go').onclick=run;$('acct').oninput=$('risk').oninput=draw;run();setInterval(run,60000);
+</script>
+</body>
+</html>
